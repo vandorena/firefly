@@ -144,6 +144,9 @@ export default function HomeScreen() {
       {isFlashlightOn && (
         <CameraView style={styles.hiddenCamera} enableTorch={true} />
       )}
+      {isFlashlightOn && (
+        <View style={styles.whiteFlash} />
+      )}
       <TouchableOpacity
         style={[styles.button, isFlashlightOn && styles.buttonActive]}
         onPress={toggleFlashlight}
@@ -171,6 +174,14 @@ const styles = StyleSheet.create({
     height: 1,
     position: 'absolute',
     opacity: 0,
+  },
+  whiteFlash: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: '#ffffff',
   },
   button: {
     width: 100,
