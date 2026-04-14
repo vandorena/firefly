@@ -1,10 +1,22 @@
-import { useState } from 'react';
-import { StyleSheet, View, TouchableOpacity, Alert } from 'react-native';
+import { useState, useEffect } from 'react';
+import { StyleSheet, View, TouchableOpacity, Alert, Text } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import LightSensor from 'expo-sensors/build/LightSensor';
 
 export default function HomeScreen() {
   const [isFlashlightOn, setIsFlashlightOn] = useState(false);
   const [permission, requestPermission] = useCameraPermissions();
+  const [lightLevel, setLightLevel] = useState<number | null>(null);
+
+  useEffect(() => {
+    const subscription = LightSensor.addListener((data) => {
+      setLightLevel(data.illuminance);
+    });
+
+    LightSensor.setUpdateInterval(100);
+
+    return () => subscription.remove();
+  }, []);
 
   const toggleFlashlight = async () => {
     if (!permission) {
@@ -24,14 +36,17 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
+      {isFlashlightOn && (
+        <CameraView style={styles.hiddenCamera} enableTorch={true} />
+      )}
       <TouchableOpacity
         style={[styles.button, isFlashlightOn && styles.buttonActive]}
         onPress={toggleFlashlight}
       >
       </TouchableOpacity>
-      {isFlashlightOn && (
-        <CameraView style={StyleSheet.absoluteFill} enableTorch={true} />
-      )}
+      <Text style={styles.lightText}>
+        {lightLevel !== null ? `${lightLevel.toFixed(2)} lux` : 'Reading...'}
+      </Text>
     </View>
   );
 }
@@ -42,6 +57,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#000',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  hiddenCamera: {
+    width: 1,
+    height: 1,
+    position: 'absolute',
+    opacity: 0,
   },
   button: {
     width: 100,
@@ -54,5 +75,11 @@ const styles = StyleSheet.create({
   buttonActive: {
     backgroundColor: '#fff',
     borderColor: '#fff',
+  },
+  lightText: {
+    color: '#fff',
+    fontSize: 24,
+    marginTop: 40,
+    fontWeight: '600',
   },
 });
