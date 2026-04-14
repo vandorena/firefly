@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { StyleSheet, View, TouchableOpacity, Alert, Text } from 'react-native';
+import { StyleSheet, View, TouchableOpacity, Alert, Text, Platform } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import LightSensor from 'expo-sensors/build/LightSensor';
+import * as Haptics from 'expo-haptics';
 
 export default function HomeScreen() {
   const [isFlashlightOn, setIsFlashlightOn] = useState(false);
@@ -9,14 +9,60 @@ export default function HomeScreen() {
   const [lightLevel, setLightLevel] = useState<number | null>(null);
 
   useEffect(() => {
-    const subscription = LightSensor.addListener((data) => {
-      setLightLevel(data.illuminance);
-    });
+    if (Platform.OS === 'android' || Platform.OS === 'ios') {
+      const loadLightSensor = async () => {
+        try {
+          const LightSensor = (await import('expo-sensors/build/LightSensor')).default;
+          const subscription = LightSensor.addListener((data) => {
+            setLightLevel(data.illuminance);
+          });
 
-    LightSensor.setUpdateInterval(100);
+          LightSensor.setUpdateInterval(100);
 
-    return () => subscription.remove();
+          return () => subscription.remove();
+        } catch (error) {
+          console.log('Light sensor not available');
+        }
+      };
+
+      loadLightSensor();
+    }
   }, []);
+
+  useEffect(() => {
+    let flashInterval: NodeJS.Timeout | null = null;
+
+    const requestPermissionAndStartFlashing = async () => {
+      if (!permission) {
+        return;
+      }
+
+      if (!permission.granted) {
+        const result = await requestPermission();
+        if (!result.granted) {
+          Alert.alert('Permission Denied', 'Camera permission is required to use the flashlight.');
+          return;
+        }
+      }
+
+      // Flash on for 1 second every 10 seconds
+      flashInterval = setInterval(() => {
+        setIsFlashlightOn(true);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+        setTimeout(() => {
+          setIsFlashlightOn(false);
+        }, 1000);
+      }, 10000);
+    };
+
+    requestPermissionAndStartFlashing();
+
+    return () => {
+      if (flashInterval) {
+        clearInterval(flashInterval);
+      }
+    };
+  }, [permission]);
 
   const toggleFlashlight = async () => {
     if (!permission) {
