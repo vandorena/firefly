@@ -14,6 +14,11 @@ export default function HomeScreen() {
   const baselineLightRef = React.useRef<number>(0);
   const lightReadingsRef = React.useRef<number[]>([]);
 
+  // Duration synchronization
+  const [flashDuration, setFlashDuration] = useState(1000); // Start at 1 second
+  const flashDurationRef = React.useRef(1000);
+  const spikeStartTimeRef = React.useRef<number | null>(null);
+
   // Light sensor setup with spike detection
   useEffect(() => {
     if (Platform.OS === 'android' || Platform.OS === 'ios') {
@@ -37,7 +42,15 @@ export default function HomeScreen() {
               const spike = lux - baselineLightRef.current;
 
               if (spike > SPIKE_THRESHOLD && !isFlashlightOn) {
-                // Another firefly flashed! Pull our phase forward
+                // Flash detected!
+                const now = Date.now();
+
+                if (spikeStartTimeRef.current === null) {
+                  // Start of a flash - record the time
+                  spikeStartTimeRef.current = now;
+                }
+
+                // Phase synchronization
                 const PULL_STRENGTH = 0.5; // How much to sync (0-1) - INCREASED for faster sync
                 const currentPhase = phaseRef.current;
 
@@ -49,6 +62,21 @@ export default function HomeScreen() {
                 if (currentPhase > 0.85) {
                   phaseRef.current = 1; // Immediate sync
                 }
+              } else if (spikeStartTimeRef.current !== null && spike <= SPIKE_THRESHOLD) {
+                // Flash ended - calculate duration
+                const now = Date.now();
+                const detectedDuration = now - spikeStartTimeRef.current;
+
+                // Sync our duration toward the detected duration (gradual adjustment)
+                const DURATION_SYNC_STRENGTH = 0.3;
+                flashDurationRef.current = Math.round(
+                  flashDurationRef.current + (detectedDuration - flashDurationRef.current) * DURATION_SYNC_STRENGTH
+                );
+                // Clamp between 500ms and 2000ms
+                flashDurationRef.current = Math.max(500, Math.min(2000, flashDurationRef.current));
+                setFlashDuration(flashDurationRef.current);
+
+                spikeStartTimeRef.current = null;
               }
             }
 
@@ -98,13 +126,13 @@ export default function HomeScreen() {
           phaseRef.current = 0; // Reset phase
           setPhase(0);
 
-          // Flash the light
+          // Flash the light with current duration
           setIsFlashlightOn(true);
-          Vibration.vibrate(1000);
+          Vibration.vibrate(flashDurationRef.current);
 
           flashTimeout = setTimeout(() => {
             setIsFlashlightOn(false);
-          }, 1000);
+          }, flashDurationRef.current);
         } else {
           setPhase(phaseRef.current);
         }
@@ -158,6 +186,9 @@ export default function HomeScreen() {
       <Text style={styles.phaseText}>
         Phase: {(phase * 100).toFixed(0)}%
       </Text>
+      <Text style={styles.durationText}>
+        Duration: {flashDuration}ms
+      </Text>
     </View>
   );
 }
@@ -205,5 +236,10 @@ const styles = StyleSheet.create({
     color: '#888',
     fontSize: 16,
     marginTop: 10,
+  },
+  durationText: {
+    color: '#888',
+    fontSize: 16,
+    marginTop: 5,
   },
 });
