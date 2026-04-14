@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
-import { StyleSheet, View, TouchableOpacity, Alert, Text, Platform } from 'react-native';
+import { StyleSheet, View, TouchableOpacity, Alert, Text, Platform, Vibration } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import * as Haptics from 'expo-haptics';
 
 export default function HomeScreen() {
   const [isFlashlightOn, setIsFlashlightOn] = useState(false);
@@ -48,7 +47,7 @@ export default function HomeScreen() {
       // Flash on for 1 second every 10 seconds
       flashInterval = setInterval(() => {
         setIsFlashlightOn(true);
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+        Vibration.vibrate(1000);
         setTimeout(() => {
           setIsFlashlightOn(false);
         }, 1000);
